@@ -1,0 +1,25 @@
+architecture-beta
+    
+    service cliente(cloud)[Cliente]
+    
+    group cloud(cloud)[Nube Principal La Colmena]
+
+        service gateway(internet)[API Gateway] in cloud
+        
+        service realtime(server)[Motor Tiempo Real] in cloud
+        service core(server)[Motor Core] in cloud
+        
+        service geodb(database)[GeoCache] in cloud
+        service kafka(server)[Bus de Eventos Kafka] in cloud
+        service trustdb(database)[DB Oracle] in cloud
+
+    cliente:B -- T:gateway
+    gateway:L -- R:realtime
+    gateway:R -- L:core
+    
+    realtime:B -- T:geodb
+    realtime:R -- L:kafka
+    
+    kafka:B -- T:core
+    core:B -- T:trustdb
+    

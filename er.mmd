@@ -1,0 +1,65 @@
+erDiagram
+    %% ==========================================
+    %% ESQUEMA: IDENTIDAD Y REPUTACIÓN (MsIdentidad)
+    %% ==========================================
+    USUARIO ||--o| PERFIL_REPUTACION : "posee"
+    USUARIO {
+        UUID id PK
+        string tipo_rol "EMPLEADOR, EMPLEADO, AMBOS"
+        string dni_hash "Cifrado para privacidad"
+        string nombres
+        boolean cuenta_verificada "Renal/Reniec check"
+    }
+
+    PERFIL_REPUTACION {
+        UUID id PK
+        UUID usuario_id FK
+        decimal puntaje_promedio "Ej. 4.8"
+        int total_trabajos_exitosos
+        string nivel_confianza "Colmena_Bronce, Plata, Oro"
+    }
+
+    CALIFICACION_INMUTABLE }o--|| USUARIO : "recibe_y_otorga"
+    CALIFICACION_INMUTABLE {
+        UUID id PK
+        UUID contrato_id "Referencia externa a MsTransacciones"
+        UUID evaluador_id FK
+        UUID evaluado_id FK
+        int puntuacion "1 a 5"
+        string comentario
+        string sello_inmutabilidad "Hash criptográfico"
+        timestamp fecha_creacion
+    }
+
+    %% ==========================================
+    %% ESQUEMA: TRANSACCIONES CORE (MsTransacciones)
+    %% ==========================================
+    SOLICITUD_CACHUELO ||--o{ CONTRATO_EJECUCION : "deriva_en"
+    SOLICITUD_CACHUELO {
+        UUID id PK
+        UUID empleador_id "Referencia externa a MsIdentidad"
+        string categoria "Electricista, Limpieza, etc."
+        string estado_busqueda "ACTIVO, MATCHED, CANCELADO"
+        decimal tarifa_referencial
+        string geohash_origen "Para sincronizar con Redis"
+        timestamp fecha_creacion
+    }
+
+    CONTRATO_EJECUCION ||--o| PAGO_DEPOSITO : "garantiza"
+    CONTRATO_EJECUCION {
+        UUID id PK
+        UUID solicitud_id FK
+        UUID empleado_id "Referencia externa a MsIdentidad"
+        string estado_trabajo "EN_CAMINO, EN_PROGRESO, FINALIZADO, DISPUTA"
+        timestamp fecha_inicio
+        timestamp fecha_fin
+    }
+
+    PAGO_DEPOSITO {
+        UUID id PK
+        UUID contrato_id FK
+        decimal monto_final
+        string metodo_pago "Yape, Plin, BCP, Efectivo"
+        string estado_pago "RETENIDO, TRANSFERIDO, REEMBOLSADO"
+        string comprobante_ref
+    }

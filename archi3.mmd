@@ -1,0 +1,209 @@
+---
+description: "Diagrama de Arquitectura de Alto Nivel - OpenWork"
+config:
+  layout: elk
+---
+flowchart TD
+    %% =========================================
+    %% ESTILOS GLOBALES
+    %% =========================================
+    classDef cdn fill:#546e7a,stroke:#263238,stroke-width:2px,color:#fff
+    classDef waf fill:#bf360c,stroke:#3e2723,stroke-width:2px,color:#fff
+    classDef lb fill:#ff8f00,stroke:#e65100,stroke-width:2px,color:#000
+    classDef frontend fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000
+    classDef gateway fill:#fff9c4,stroke:#fbc02d,stroke-width:2px,color:#000
+    classDef auth fill:#d1c4e9,stroke:#4527a0,stroke-width:2px,color:#000
+    classDef backend fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#000
+    classDef geo fill:#b2dfdb,stroke:#00695c,stroke-width:2px,color:#000
+    classDef messaging fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px,color:#000
+    classDef database fill:#ffebee,stroke:#c62828,stroke-width:2px,color:#000
+    classDef external fill:#eceff1,stroke:#37474f,stroke-width:2px,color:#000
+    classDef analytics fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#000
+    classDef logging fill:#efebe9,stroke:#5d4037,stroke-width:2px,color:#000
+
+    %% =========================================
+    %% CAPA DE BORDE (CDN, WAF, LOAD BALANCER)
+    %% =========================================
+    subgraph Edge_Layer [🌐 Edge Layer - CDN & Protección]
+        CDN[CDN - CloudFront / Cloudflare]
+        WAF[WAF - Web Application Firewall]
+        LB1[Load Balancer - Capa 4]
+        LB2[Load Balancer - Capa 7]
+    end
+    class Edge_Layer cdn
+
+    %% =========================================
+    %% CAPA FRONTEND (MÓVIL / WEB)
+    %% =========================================
+    subgraph Frontend_Layer [📱 Frontend - Interfaces de Usuario]
+        AppEmpleado[App Empleado<br/>React Native / Flutter]
+        AppEmpleador[App Empleador<br/>React Native / Flutter]
+        WebPanel[Panel Web Empleador<br/>Angular/React]
+    end
+    class Frontend_Layer frontend
+
+    %% =========================================
+    %% CAPA DE ENTRADA Y SEGURIDAD
+    %% =========================================
+    subgraph Gateway_Layer [🚪 API Gateway & Edge Services]
+        Gateway[API Gateway - Kong / NGINX]
+        BFF[BFF - Backend For Frontend]
+        AuthService[Servicio de Autenticación<br/>OAuth2 / OpenID Connect]
+    end
+    class Gateway_Layer gateway
+
+    %% =========================================
+    %% CAPA BACKEND (MICROSERVICIOS)
+    %% =========================================
+    subgraph Backend_Layer [⚙️ Backend - Microservicios Core]
+        MsIdentidad[Microservicio de<br/>Identidad y Reputación]
+        MsMatching[Microservicio de<br/>Matching en Tiempo Real]
+        MsTransacciones[Microservicio Core<br/>de Transacciones]
+        MsNotificaciones[Microservicio de<br/>Notificaciones Push]
+        MsGeocercas[Microservicio de<br/>Geocercas y Geolocalización]
+    end
+    class Backend_Layer backend
+
+    %% =========================================
+    %% CAPA DE GEOLOCALIZACIÓN (NUEVA)
+    %% =========================================
+    subgraph Geo_Layer [🗺️ Servicios de Localización]
+        GeoCore[Geocercas en Tiempo Real]
+        MapService[Proveedor de Mapas<br/>Google Maps / OSM]
+    end
+    class Geo_Layer geo
+
+    %% =========================================
+    %% CAPA DE MENSAJERÍA (EVENTOS)
+    %% =========================================
+    subgraph Messaging_Layer [📨 Bus de Eventos - Kafka]
+        KafkaBroker[Cluster Kafka<br/>3+ nodos]
+        Topics[/Topics:<br/>alertas, pagos, reputacion, geoeventos/]
+    end
+    class Messaging_Layer messaging
+
+    %% =========================================
+    %% CAPA DE DATOS (SEGREGADA)
+    %% =========================================
+    subgraph Data_Layer [💾 Bases de Datos y Caché]
+        OraclePrimary[(Oracle RAC<br/>Transaccional)]
+        OracleReplica[(Oracle Replica<br/>Solo Lectura)]
+        RedisCluster[(Redis Cluster<br/>GeoHash + Sesiones)]
+    end
+    class Data_Layer database
+
+    %% =========================================
+    %% CAPA DE ANALÍTICA Y ALMACENAMIENTO
+    %% =========================================
+    subgraph Analytics_Layer [📊 Data Lake & Analytics]
+        DataLake[(Data Lake<br/>S3 / ADLS)]
+        Warehouse[(Data Warehouse<br/>Snowflake / Redshift)]
+        SparkJobs[Spark Streamming<br/>Jobs]
+    end
+    class Analytics_Layer analytics
+
+    %% =========================================
+    %% CAPA DE LOGGING Y MONITOREO
+    %% =========================================
+    subgraph Observability_Layer [📈 Observabilidad]
+        ELK[ELK Stack<br/>Elasticsearch+Logstash+Kibana]
+        Prometheus[Prometheus + Grafana]
+        AlertManager[AlertManager<br/>PagerDuty/Slack]
+    end
+    class Observability_Layer logging
+
+    %% =========================================
+    %% SERVICIOS EXTERNOS
+    %% =========================================
+    subgraph External_Services [🔌 Servicios Externos]
+        PaymentGateway[Pasarela de Pagos<br/>Stripe / MercadoPago]
+        PushProviders[Proveedores Push<br/>FCM / APNs]
+        EmailSMS[Email + SMS<br/>SendGrid / Twilio]
+    end
+    class External_Services external
+
+    %% =========================================
+    %% FLUJOS PRINCIPALES (iguales al original)
+    %% =========================================
+    AppEmpleador -->|HTTP/REST| LB2
+    AppEmpleado   <-->|WebSockets bidireccional| LB2
+    WebPanel      -->|HTTPS| LB2
+
+    LB2 --> Gateway
+    Gateway --> BFF
+    BFF --> AuthService
+    AuthService -->|Valida token| MsIdentidad
+    BFF --> MsIdentidad
+    BFF --> MsMatching
+    BFF --> MsTransacciones
+
+    MsIdentidad     -->|Lectura/Escritura| OraclePrimary
+    MsTransacciones -->|Transacciones ACID| OraclePrimary
+    MsIdentidad     -->|Consultas lectura| OracleReplica
+    MsMatching      <-->|GeoHash + Sesiones| RedisCluster
+
+    MsMatching      -->|Publica: AlertaGenerada| KafkaBroker
+    MsTransacciones -->|Publica: PagoAprobado| KafkaBroker
+    MsIdentidad     -->|Publica: ReputacionActualizada| KafkaBroker
+    MsGeocercas     -->|Publica: EventoGeocerca| KafkaBroker
+
+    KafkaBroker -->|Consume| MsNotificaciones
+    KafkaBroker -->|Consume| MsTransacciones
+    KafkaBroker -->|Consume| MsMatching
+    KafkaBroker -->|Consume| MsGeocercas
+
+    %% Notificaciones push original
+    MsNotificaciones -->|Push| PushProviders
+    PushProviders --> AppEmpleado
+
+    %% Nuevas conexiones elaboradas
+    %% Geolocalización
+    MsMatching <-->|Consulta geocercas| GeoCore
+    GeoCore -->|Consume geoeventos| KafkaBroker
+    GeoCore -->|Actualiza posiciones| RedisCluster
+    MsGeocercas <-->|APIs REST| MapService
+
+    %% Pagos externos
+    MsTransacciones --> PaymentGateway
+
+    %% Notificaciones adicionales
+    MsNotificaciones --> EmailSMS
+    EmailSMS -->|Email| AppEmpleador
+    EmailSMS -->|SMS| AppEmpleado
+
+    %% Data Lake & Analytics
+    KafkaBroker -->|Stream todos eventos| SparkJobs
+    SparkJobs -->|Almacena raw| DataLake
+    SparkJobs -->|Agrega| Warehouse
+    Warehouse -->|Reportes BI| WebPanel
+
+    %% Logging y monitoreo
+    MsIdentidad -->|Logs| ELK
+    MsMatching -->|Logs| ELK
+    MsTransacciones -->|Logs| ELK
+    MsGeocercas -->|Logs| ELK
+    Gateway -->|Accesos| ELK
+    ELK -->|Alertas| AlertManager
+    Prometheus -->|Métricas| MsIdentidad
+    Prometheus -->|Métricas| MsMatching
+    AlertManager -->|Notifica| EmailSMS
+
+    %% CDN + WAF + LB
+    AppEmpleador -->|Static assets| CDN
+    CDN --> WAF
+    WAF --> LB1
+    LB1 --> LB2
+
+    %% =========================================
+    %% ESTILOS APLICADOS A SUBGRÁFICOS
+    %% =========================================
+    style Edge_Layer fill:#eceff1,stroke:#37474f,stroke-width:2px
+    style Frontend_Layer fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    style Gateway_Layer fill:#fff9c4,stroke:#fbc02d,stroke-width:2px
+    style Backend_Layer fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    style Geo_Layer fill:#b2dfdb,stroke:#00695c,stroke-width:2px
+    style Messaging_Layer fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px
+    style Data_Layer fill:#ffebee,stroke:#c62828,stroke-width:2px
+    style Analytics_Layer fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style Observability_Layer fill:#efebe9,stroke:#5d4037,stroke-width:2px
+    style External_Services fill:#e8eaf6,stroke:#283593,stroke-width:2px
