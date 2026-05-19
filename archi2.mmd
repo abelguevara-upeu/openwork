@@ -1,83 +1,52 @@
 ---
-description: "Diagrama de Arquitectura de Alto Nivel - OpenWork"
+description: "Diagrama de Arquitectura Intermedia - WMS COLOGISTIC"
 config:
   layout: elk
 ---
-graph TD
-    %% =========================================
-    %% CAPA FRONTEND (MÓVIL / WEB)
-    %% =========================================
-    subgraph Capa_Frontend [Frontend - Interfaces de Usuario]
-        AppEmpleador[App Empleador - React Native / Flutter]
-        AppEmpleado[App Empleado - React Native / Flutter]
+flowchart TD
+    classDef frontend fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000
+    classDef gateway fill:#fff9c4,stroke:#fbc02d,stroke-width:2px,color:#000
+    classDef backend fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#000
+    classDef ml fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px,color:#000
+    classDef database fill:#ffebee,stroke:#c62828,stroke-width:2px,color:#000
+
+    subgraph Frontend_Layer [📱 Frontend - Interfaces de Usuario]
+        Dashboard[Dashboard Web<br/>Vue.js]
+        AppOperario[App Montacarguista<br/>Flutter]
     end
+    class Frontend_Layer frontend
 
-    %% =========================================
-    %% CAPA DE ENTRADA Y SEGURIDAD
-    %% =========================================
-    subgraph Capa_Gateway [API Gateway & Edge]
-        Gateway[API Gateway / Load Balancer]
-        BFF[BFF - Backend For Frontend]
+    subgraph Gateway_Layer [🚪 Gateway]
+        Gateway[API Gateway<br/>Spring Cloud Gateway]
     end
+    class Gateway_Layer gateway
 
-    %% =========================================
-    %% CAPA BACKEND (MICROSERVICIOS)
-    %% =========================================
-    subgraph Capa_Motor_Core[Motor Core]
-        MsIdentidad[Microservicio de Identidad y Reputación]
-        MsTransacciones[Microservicio Core de Transacciones]
+    subgraph Backend_Layer [⚙️ Core WMS - Spring Boot]
+        MsInventario[MS Inventario & Ubicaciones]
+        MsRecepcion[MS Recepción & Despacho]
+        MsUsuarios[MS Usuarios & Seguridad]
     end
+    class Backend_Layer backend
 
-    subgraph Capa_Motor_Tiempo_Real[Motor Tiempo Real]
-        MsMatching[Microservicio de Matching en Tiempo Real]
-        MsGeocercas[Microservicio de Geocercas]
-        MsNotificaciones[Microservicio de Notificaciones Push]
+    subgraph ML_Layer [🧠 Inteligencia Artificial - Python]
+        MsForecasting[MS Pronóstico de Capacidad]
     end
+    class ML_Layer ml
 
-    subgraph Motor_Core
-        MsIdentidad
-        MsTransacciones
-        MsNotificaciones
+    subgraph Data_Layer [💾 Bases de Datos]
+        PostgreSQL[(PostgreSQL Principal)]
     end
+    class Data_Layer database
 
-    %% =========================================
-    %% CAPA DE MENSAJERÍA
-    %% =========================================
-    subgraph Capa_Mensajeria [Bus de Eventos]
-        Kafka[Apache Kafka - Broker de Eventos]
-    end
+    Dashboard --> Gateway
+    AppOperario --> Gateway
 
-    %% =========================================
-    %% CAPA DE DATOS (SEGREGADA)
-    %% =========================================
-    subgraph Capa_Datos [Bases de Datos]
-        Oracle[(DB Oracle - Core Persistente)]
-        Redis[(Redis - GeoCache y Sesiones)]
-    end
+    Gateway --> MsUsuarios
+    Gateway --> MsInventario
+    Gateway --> MsRecepcion
+    Gateway --> MsForecasting
 
-    %% Relaciones Frontend -> Gateway
-    AppEmpleador -->|HTTP/REST| Gateway
-    AppEmpleado <-->|WebSockets bidireccional| Gateway
-    
-    %% Relaciones Gateway -> Backend
-    Gateway --> BFF
-    BFF --> MsIdentidad
-    BFF --> MsMatching
-    BFF --> MsTransacciones
-
-    %% Relaciones Backend -> Base de Datos
-    MsIdentidad -->|Lectura/Escritura| Oracle
-    MsTransacciones -->|Transacciones ACID| Oracle
-    MsMatching <-->|Operaciones Sub-milisegundo| Redis
-    
-    %% Relaciones Backend -> Kafka
-    MsMatching -->|Publica: AlertaGenerada| Kafka
-    MsTransacciones -->|Publica: PagoAprobado| Kafka
-    MsIdentidad -->|Publica: ReputacionActualizada| Kafka
-    
-    Kafka -->|Consume| MsNotificaciones
-    Kafka -->|Consume| MsTransacciones
-    Kafka -->|Consume| MsMatching
-    
-    %% Relaciones a servicios externos
-    MsNotificaciones -->|FCM / APNs| AppEmpleado
+    MsUsuarios --> PostgreSQL
+    MsInventario --> PostgreSQL
+    MsRecepcion --> PostgreSQL
+    MsForecasting -->|Lectura histórico| PostgreSQL

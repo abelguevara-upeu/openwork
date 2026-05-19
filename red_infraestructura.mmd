@@ -1,0 +1,87 @@
+---
+description: "Diagrama de Red e Infraestructura - WMS COLOGISTIC S.A.C."
+config:
+  layout: elk
+---
+flowchart TD
+    %% =========================================
+    %% ESTILOS GLOBALES
+    %% =========================================
+    classDef internet fill:#eceff1,stroke:#37474f,stroke-width:2px,color:#000
+    classDef pfsense fill:#bf360c,stroke:#3e2723,stroke-width:2px,color:#fff
+    classDef dmz fill:#fff9c4,stroke:#fbc02d,stroke-width:2px,color:#000
+    classDef lan fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#000
+    classDef dblan fill:#ffebee,stroke:#c62828,stroke-width:2px,color:#000
+    classDef server fill:#ffffff,stroke:#1565c0,stroke-width:2px,color:#000
+
+    %% =========================================
+    %% ZONA PÚBLICA (INTERNET)
+    %% =========================================
+    subgraph WAN [🌐 Red Pública / Internet]
+        Users[Usuarios Externos<br/>Vuejs y Flutter App]
+    end
+    class WAN internet
+
+    %% =========================================
+    %% FIREWALL DE BORDE
+    %% =========================================
+    pfsense{{🛡️ Firewall Perimetral<br/>pfSense}}
+    class pfsense pfsense
+
+    %% =========================================
+    %% ZONA DMZ (Expuesta a Internet)
+    %% =========================================
+    subgraph DMZ [🚧 Zona DMZ XX Red Desmilitarizada XX VLAN 10]
+        direction LR
+        SrvWeb[Servidor Web NGINX<br/>Static Vue.js]:::server
+        SrvGateway[Servidor API Gateway<br/>Spring Cloud Gateway]:::server
+    end
+    class DMZ dmz
+
+    %% =========================================
+    %% ZONA LAN (Aplicaciones)
+    %% =========================================
+    subgraph LAN [🏢 Red LAN Interna Microservicios XX VLAN 20]
+        direction LR
+        SrvK8s1[Servidor XX Nodo Docker 1<br/>MS Inventario XX Recepción]:::server
+        SrvK8s2[Servidor XX Nodo Docker 2<br/>MS Usuarios XX ML Python]:::server
+        SrvBroker[Servidor Mensajería<br/>Cluster Apache Kafka]:::server
+    end
+    class LAN lan
+
+    %% =========================================
+    %% ZONA DATOS (Aislada y Segura)
+    %% =========================================
+    subgraph DB_VLAN [🗄️ VLAN Datos XXMáxima SeguridaXX VLAN 30]
+        direction LR
+        SrvDBPrimary[(Servidor Base de Datos<br/>PostgreSQL Principal)]
+        SrvRedis[(Servidor Caché<br/>Redis Cluster)]
+        SrvAnalytics[(Servidor Data<br/>Data Warehouse/ELK)]
+    end
+    class DB_VLAN dblan
+
+    %% =========================================
+    %% REGLAS DE RED / RUTEOS (FLUJOS)
+    %% =========================================
+    Users -->|HTTPS: 443| pfsense
+    
+    %% Firewall redirige tráfico autorizado a la DMZ
+    pfsense -->|Port Forwarding / NAT| SrvWeb
+    pfsense -->|Port Forwarding / NAT| SrvGateway
+
+    %% La DMZ se comunica con la LAN (pero la LAN no expuesta a internet)
+    SrvWeb -.->|APIs| SrvGateway
+    SrvGateway -->|Servicios Core| SrvK8s1
+    SrvGateway -->|Servicios Core / ML| SrvK8s2
+
+    %% Comunicación entre microservicios y Kafka dentro de la LAN
+    SrvK8s1 <--> SrvBroker
+    SrvK8s2 <--> SrvBroker
+
+    %% La LAN accede a la base de datos, pero DMZ no puede acceder directo a BD
+    pfsense -.->|Regla: Bloqueo DMZ a BD| DB_VLAN
+    SrvK8s1 -->|JDBC: 5432| SrvDBPrimary
+    SrvK8s1 -->|TCP: 6379| SrvRedis
+    SrvK8s2 -->|JDBC: 5432| SrvDBPrimary
+    
+    SrvBroker -->|Flujo de logs datos| SrvAnalytics

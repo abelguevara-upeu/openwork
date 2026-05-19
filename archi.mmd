@@ -1,25 +1,22 @@
 architecture-beta
     
-    service cliente(cloud)[Cliente]
+    service user(cloud)[Frontend Vue y Flutter]
     
-    group cloud(cloud)[Nube Principal La Colmena]
+    group cloud(cloud)[WMS COLOGISTIC Cloud]
 
-        service gateway(internet)[API Gateway] in cloud
+        service gateway(internet)[Spring Cloud Gateway] in cloud
         
-        service realtime(server)[Motor Tiempo Real] in cloud
-        service core(server)[Motor Core] in cloud
+        service wms(server)[Core WMS Spring Boot] in cloud
+        service ml(server)[ML Forecast Python] in cloud
         
-        service geodb(database)[GeoCache] in cloud
-        service kafka(server)[Bus de Eventos Kafka] in cloud
-        service trustdb(database)[DB Oracle] in cloud
+        service kafka(server)[Bus Kafka] in cloud
+        service db(database)[PostgreSQL] in cloud
 
-    cliente:B -- T:gateway
-    gateway:L -- R:realtime
-    gateway:R -- L:core
+    user:B -- T:gateway
+    gateway:B -- T:wms
+    gateway:R -- L:ml
     
-    realtime:B -- T:geodb
-    realtime:R -- L:kafka
+    wms:B -- T:db
+    ml:B -- T:kafka
     
-    kafka:B -- T:core
-    core:B -- T:trustdb
-    
+    wms:R -- L:kafka

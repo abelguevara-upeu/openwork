@@ -1,5 +1,5 @@
 ---
-description: "Diagrama de Arquitectura de Alto Nivel - OpenWork"
+description: "Diagrama de Arquitectura de Alto Nivel - WMS COLOGISTIC S.A.C."
 config:
   layout: elk
 ---
@@ -14,7 +14,7 @@ flowchart TD
     classDef gateway fill:#fff9c4,stroke:#fbc02d,stroke-width:2px,color:#000
     classDef auth fill:#d1c4e9,stroke:#4527a0,stroke-width:2px,color:#000
     classDef backend fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#000
-    classDef geo fill:#b2dfdb,stroke:#00695c,stroke-width:2px,color:#000
+    classDef ml fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px,color:#000
     classDef messaging fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px,color:#000
     classDef database fill:#ffebee,stroke:#c62828,stroke-width:2px,color:#000
     classDef external fill:#eceff1,stroke:#37474f,stroke-width:2px,color:#000
@@ -36,9 +36,8 @@ flowchart TD
     %% CAPA FRONTEND (MÓVIL / WEB)
     %% =========================================
     subgraph Frontend_Layer [📱 Frontend - Interfaces de Usuario]
-        AppEmpleado[App Empleado<br/>React Native / Flutter]
-        AppEmpleador[App Empleador<br/>React Native / Flutter]
-        WebPanel[Panel Web Empleador<br/>Angular/React]
+        AppOperario[App Montacarguista<br/>Flutter]
+        WebPanel[Dashboard Web<br/>Vue.js]
     end
     class Frontend_Layer frontend
 
@@ -46,39 +45,37 @@ flowchart TD
     %% CAPA DE ENTRADA Y SEGURIDAD
     %% =========================================
     subgraph Gateway_Layer [🚪 API Gateway & Edge Services]
-        Gateway[API Gateway - Kong / NGINX]
+        Gateway[API Gateway - Spring Cloud Gateway]
         BFF[BFF - Backend For Frontend]
-        AuthService[Servicio de Autenticación<br/>OAuth2 / OpenID Connect]
+        AuthService[Servicio de Autenticación<br/>Spring Security / JWT]
     end
     class Gateway_Layer gateway
 
     %% =========================================
-    %% CAPA BACKEND (MICROSERVICIOS)
+    %% CAPA BACKEND (MICROSERVICIOS WMS)
     %% =========================================
-    subgraph Backend_Layer [⚙️ Backend - Microservicios Core]
-        MsIdentidad[Microservicio de<br/>Identidad y Reputación]
-        MsMatching[Microservicio de<br/>Matching en Tiempo Real]
-        MsTransacciones[Microservicio Core<br/>de Transacciones]
-        MsNotificaciones[Microservicio de<br/>Notificaciones Push]
-        MsGeocercas[Microservicio de<br/>Geocercas y Geolocalización]
+    subgraph Backend_Layer [⚙️ Backend Core WMS - Spring Boot]
+        MsUsuarios[Microservicio de<br/>Usuarios y Roles]
+        MsInventario[Microservicio de<br/>Inventario y Ubicaciones]
+        MsRecepcion[Microservicio de<br/>Recepción y Despacho]
+        MsNotificaciones[Microservicio de<br/>Alertas y Notificaciones]
     end
     class Backend_Layer backend
 
     %% =========================================
-    %% CAPA DE GEOLOCALIZACIÓN (NUEVA)
+    %% CAPA DE INTELIGENCIA ARTIFICIAL
     %% =========================================
-    subgraph Geo_Layer [🗺️ Servicios de Localización]
-        GeoCore[Geocercas en Tiempo Real]
-        MapService[Proveedor de Mapas<br/>Google Maps / OSM]
+    subgraph ML_Layer [🧠 Cerebro - Python ML]
+        MsForecasting[Microservicio Predictivo<br/>Python Flask/FastAPI]
     end
-    class Geo_Layer geo
+    class ML_Layer ml
 
     %% =========================================
     %% CAPA DE MENSAJERÍA (EVENTOS)
     %% =========================================
     subgraph Messaging_Layer [📨 Bus de Eventos - Kafka]
         KafkaBroker[Cluster Kafka<br/>3+ nodos]
-        Topics[/Topics:<br/>alertas, pagos, reputacion, geoeventos/]
+        Topics[/Topics:<br/>ingresos, despachos, alertas_capacidad/]
     end
     class Messaging_Layer messaging
 
@@ -86,9 +83,9 @@ flowchart TD
     %% CAPA DE DATOS (SEGREGADA)
     %% =========================================
     subgraph Data_Layer [💾 Bases de Datos y Caché]
-        OraclePrimary[(Oracle RAC<br/>Transaccional)]
-        OracleReplica[(Oracle Replica<br/>Solo Lectura)]
-        RedisCluster[(Redis Cluster<br/>GeoHash + Sesiones)]
+        DBPrimary[(PostgreSQL<br/>WMS Transaccional)]
+        DBReplica[(PostgreSQL Replica<br/>Solo Lectura)]
+        RedisCluster[(Redis Cluster<br/>Caché Ubicaciones y Sesiones)]
     end
     class Data_Layer database
 
@@ -116,80 +113,72 @@ flowchart TD
     %% SERVICIOS EXTERNOS
     %% =========================================
     subgraph External_Services [🔌 Servicios Externos]
-        PaymentGateway[Pasarela de Pagos<br/>Stripe / MercadoPago]
+        ERP[ERP Integrado<br/>SAP / Oracle]
         PushProviders[Proveedores Push<br/>FCM / APNs]
         EmailSMS[Email + SMS<br/>SendGrid / Twilio]
     end
     class External_Services external
 
     %% =========================================
-    %% FLUJOS PRINCIPALES (iguales al original)
+    %% FLUJOS PRINCIPALES
     %% =========================================
-    AppEmpleador -->|HTTP/REST| LB2
-    AppEmpleado   <-->|WebSockets bidireccional| LB2
     WebPanel      -->|HTTPS| LB2
+    AppOperario   <-->|WebSockets / REST| LB2
 
     LB2 --> Gateway
     Gateway --> BFF
     BFF --> AuthService
-    AuthService -->|Valida token| MsIdentidad
-    BFF --> MsIdentidad
-    BFF --> MsMatching
-    BFF --> MsTransacciones
+    AuthService -->|Valida token| MsUsuarios
+    BFF --> MsUsuarios
+    BFF --> MsInventario
+    BFF --> MsRecepcion
+    BFF --> MsForecasting
 
-    MsIdentidad     -->|Lectura/Escritura| OraclePrimary
-    MsTransacciones -->|Transacciones ACID| OraclePrimary
-    MsIdentidad     -->|Consultas lectura| OracleReplica
-    MsMatching      <-->|GeoHash + Sesiones| RedisCluster
+    MsUsuarios     -->|Lectura/Escritura| DBPrimary
+    MsInventario   -->|Lectura/Escritura| DBPrimary
+    MsRecepcion    -->|Transacciones ACID| DBPrimary
+    MsForecasting  -->|Consultas históricas| DBReplica
+    MsInventario   <-->|Caché de consultas| RedisCluster
 
-    MsMatching      -->|Publica: AlertaGenerada| KafkaBroker
-    MsTransacciones -->|Publica: PagoAprobado| KafkaBroker
-    MsIdentidad     -->|Publica: ReputacionActualizada| KafkaBroker
-    MsGeocercas     -->|Publica: EventoGeocerca| KafkaBroker
+    MsRecepcion    -->|Publica: Ingreso/Salida| KafkaBroker
+    MsInventario   -->|Publica: UbicacionCambio| KafkaBroker
+    MsForecasting  -->|Publica: AlertaCapacidad| KafkaBroker
 
     KafkaBroker -->|Consume| MsNotificaciones
-    KafkaBroker -->|Consume| MsTransacciones
-    KafkaBroker -->|Consume| MsMatching
-    KafkaBroker -->|Consume| MsGeocercas
+    KafkaBroker -->|Consume| MsForecasting
+    KafkaBroker -->|Consume| MsInventario
 
-    %% Notificaciones push original
-    MsNotificaciones -->|Push| PushProviders
-    PushProviders --> AppEmpleado
+    %% Notificaciones push
+    MsNotificaciones -->|Push a Operadores| PushProviders
+    PushProviders --> AppOperario
 
-    %% Nuevas conexiones elaboradas
-    %% Geolocalización
-    MsMatching <-->|Consulta geocercas| GeoCore
-    GeoCore -->|Consume geoeventos| KafkaBroker
-    GeoCore -->|Actualiza posiciones| RedisCluster
-    MsGeocercas <-->|APIs REST| MapService
-
-    %% Pagos externos
-    MsTransacciones --> PaymentGateway
+    %% Integraciones Externas
+    MsRecepcion -->|Sincroniza inventario| ERP
 
     %% Notificaciones adicionales
     MsNotificaciones --> EmailSMS
-    EmailSMS -->|Email| AppEmpleador
-    EmailSMS -->|SMS| AppEmpleado
+    EmailSMS -->|Email de reportes| WebPanel
 
     %% Data Lake & Analytics
     KafkaBroker -->|Stream todos eventos| SparkJobs
     SparkJobs -->|Almacena raw| DataLake
-    SparkJobs -->|Agrega| Warehouse
-    Warehouse -->|Reportes BI| WebPanel
+    SparkJobs -->|Agrega para ML/BI| Warehouse
+    Warehouse -->|Reportes BI Ops| WebPanel
+    Warehouse -->|Entrenamiento Modelo| MsForecasting
 
     %% Logging y monitoreo
-    MsIdentidad -->|Logs| ELK
-    MsMatching -->|Logs| ELK
-    MsTransacciones -->|Logs| ELK
-    MsGeocercas -->|Logs| ELK
+    MsUsuarios -->|Logs| ELK
+    MsInventario -->|Logs| ELK
+    MsRecepcion -->|Logs| ELK
+    MsForecasting -->|Logs| ELK
     Gateway -->|Accesos| ELK
     ELK -->|Alertas| AlertManager
-    Prometheus -->|Métricas| MsIdentidad
-    Prometheus -->|Métricas| MsMatching
-    AlertManager -->|Notifica| EmailSMS
+    Prometheus -->|Métricas| MsInventario
+    Prometheus -->|Métricas| MsForecasting
+    AlertManager -->|Notifica fallos| EmailSMS
 
     %% CDN + WAF + LB
-    AppEmpleador -->|Static assets| CDN
+    WebPanel -->|Static assets| CDN
     CDN --> WAF
     WAF --> LB1
     LB1 --> LB2
@@ -201,7 +190,7 @@ flowchart TD
     style Frontend_Layer fill:#e1f5fe,stroke:#01579b,stroke-width:2px
     style Gateway_Layer fill:#fff9c4,stroke:#fbc02d,stroke-width:2px
     style Backend_Layer fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
-    style Geo_Layer fill:#b2dfdb,stroke:#00695c,stroke-width:2px
+    style ML_Layer fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px
     style Messaging_Layer fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px
     style Data_Layer fill:#ffebee,stroke:#c62828,stroke-width:2px
     style Analytics_Layer fill:#fff3e0,stroke:#e65100,stroke-width:2px
