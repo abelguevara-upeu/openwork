@@ -1,198 +1,52 @@
 ---
-description: "Diagrama de Arquitectura de Alto Nivel - WMS COLOGISTIC S.A.C."
+description: "Diagrama de Arquitectura Intermedia - WMS COLOGISTIC"
 config:
   layout: elk
 ---
 flowchart TD
-    %% =========================================
-    %% ESTILOS GLOBALES
-    %% =========================================
-    classDef cdn fill:#546e7a,stroke:#263238,stroke-width:2px,color:#fff
-    classDef waf fill:#bf360c,stroke:#3e2723,stroke-width:2px,color:#fff
-    classDef lb fill:#ff8f00,stroke:#e65100,stroke-width:2px,color:#000
     classDef frontend fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000
     classDef gateway fill:#fff9c4,stroke:#fbc02d,stroke-width:2px,color:#000
-    classDef auth fill:#d1c4e9,stroke:#4527a0,stroke-width:2px,color:#000
     classDef backend fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#000
     classDef ml fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px,color:#000
-    classDef messaging fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px,color:#000
     classDef database fill:#ffebee,stroke:#c62828,stroke-width:2px,color:#000
-    classDef external fill:#eceff1,stroke:#37474f,stroke-width:2px,color:#000
-    classDef analytics fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#000
-    classDef logging fill:#efebe9,stroke:#5d4037,stroke-width:2px,color:#000
 
-    %% =========================================
-    %% CAPA DE BORDE (CDN, WAF, LOAD BALANCER)
-    %% =========================================
-    subgraph Edge_Layer [🌐 Edge Layer - CDN & Protección]
-        CDN[CDN - CloudFront / Cloudflare]
-        WAF[WAF - Web Application Firewall]
-        LB1[Load Balancer - Capa 4]
-        LB2[Load Balancer - Capa 7]
-    end
-    class Edge_Layer cdn
-
-    %% =========================================
-    %% CAPA FRONTEND (MÓVIL / WEB)
-    %% =========================================
     subgraph Frontend_Layer [📱 Frontend - Interfaces de Usuario]
+        Dashboard[Dashboard Web<br/>Vue.js]
         AppOperario[App Montacarguista<br/>Flutter]
-        WebPanel[Dashboard Web<br/>Vue.js]
     end
     class Frontend_Layer frontend
 
-    %% =========================================
-    %% CAPA DE ENTRADA Y SEGURIDAD
-    %% =========================================
-    subgraph Gateway_Layer [🚪 API Gateway & Edge Services]
-        Gateway[API Gateway - Spring Cloud Gateway]
-        BFF[BFF - Backend For Frontend]
-        AuthService[Servicio de Autenticación<br/>Spring Security / JWT]
+    subgraph Gateway_Layer [🚪 Gateway]
+        Gateway[API Gateway<br/>Spring Cloud Gateway]
     end
     class Gateway_Layer gateway
 
-    %% =========================================
-    %% CAPA BACKEND (MICROSERVICIOS WMS)
-    %% =========================================
-    subgraph Backend_Layer [⚙️ Backend Core WMS - Spring Boot]
-        MsUsuarios[Microservicio de<br/>Usuarios y Roles]
-        MsInventario[Microservicio de<br/>Inventario y Ubicaciones]
-        MsRecepcion[Microservicio de<br/>Recepción y Despacho]
-        MsNotificaciones[Microservicio de<br/>Alertas y Notificaciones]
+    subgraph Backend_Layer [⚙️ Core WMS - Spring Boot]
+        MsInventario[MS Inventario & Ubicaciones]
+        MsRecepcion[MS Recepción & Despacho]
+        MsUsuarios[MS Usuarios & Seguridad]
     end
     class Backend_Layer backend
 
-    %% =========================================
-    %% CAPA DE INTELIGENCIA ARTIFICIAL
-    %% =========================================
-    subgraph ML_Layer [🧠 Cerebro - Python ML]
-        MsForecasting[Microservicio Predictivo<br/>Python Flask/FastAPI]
+    subgraph ML_Layer [🧠 Inteligencia Artificial - Python]
+        MsForecasting[MS Pronóstico de Capacidad]
     end
     class ML_Layer ml
 
-    %% =========================================
-    %% CAPA DE MENSAJERÍA (EVENTOS)
-    %% =========================================
-    subgraph Messaging_Layer [📨 Bus de Eventos - Kafka]
-        KafkaBroker[Cluster Kafka<br/>3+ nodos]
-        Topics[/Topics:<br/>ingresos, despachos, alertas_capacidad/]
-    end
-    class Messaging_Layer messaging
-
-    %% =========================================
-    %% CAPA DE DATOS (SEGREGADA)
-    %% =========================================
-    subgraph Data_Layer [💾 Bases de Datos y Caché]
-        DBPrimary[(PostgreSQL<br/>WMS Transaccional)]
-        DBReplica[(PostgreSQL Replica<br/>Solo Lectura)]
-        RedisCluster[(Redis Cluster<br/>Caché Ubicaciones y Sesiones)]
+    subgraph Data_Layer [💾 Bases de Datos]
+        PostgreSQL[(PostgreSQL Principal)]
     end
     class Data_Layer database
 
-    %% =========================================
-    %% CAPA DE ANALÍTICA Y ALMACENAMIENTO
-    %% =========================================
-    subgraph Analytics_Layer [📊 Data Lake & Analytics]
-        DataLake[(Data Lake<br/>S3 / ADLS)]
-        Warehouse[(Data Warehouse<br/>Snowflake / Redshift)]
-        SparkJobs[Spark Streamming<br/>Jobs]
-    end
-    class Analytics_Layer analytics
+    Dashboard --> Gateway
+    AppOperario --> Gateway
 
-    %% =========================================
-    %% CAPA DE LOGGING Y MONITOREO
-    %% =========================================
-    subgraph Observability_Layer [📈 Observabilidad]
-        ELK[ELK Stack<br/>Elasticsearch+Logstash+Kibana]
-        Prometheus[Prometheus + Grafana]
-        AlertManager[AlertManager<br/>PagerDuty/Slack]
-    end
-    class Observability_Layer logging
+    Gateway --> MsUsuarios
+    Gateway --> MsInventario
+    Gateway --> MsRecepcion
+    Gateway --> MsForecasting
 
-    %% =========================================
-    %% SERVICIOS EXTERNOS
-    %% =========================================
-    subgraph External_Services [🔌 Servicios Externos]
-        ERP[ERP Integrado<br/>SAP / Oracle]
-        PushProviders[Proveedores Push<br/>FCM / APNs]
-        EmailSMS[Email + SMS<br/>SendGrid / Twilio]
-    end
-    class External_Services external
-
-    %% =========================================
-    %% FLUJOS PRINCIPALES
-    %% =========================================
-    WebPanel      -->|HTTPS| LB2
-    AppOperario   <-->|WebSockets / REST| LB2
-
-    LB2 --> Gateway
-    Gateway --> BFF
-    BFF --> AuthService
-    AuthService -->|Valida token| MsUsuarios
-    BFF --> MsUsuarios
-    BFF --> MsInventario
-    BFF --> MsRecepcion
-    BFF --> MsForecasting
-
-    MsUsuarios     -->|Lectura/Escritura| DBPrimary
-    MsInventario   -->|Lectura/Escritura| DBPrimary
-    MsRecepcion    -->|Transacciones ACID| DBPrimary
-    MsForecasting  -->|Consultas históricas| DBReplica
-    MsInventario   <-->|Caché de consultas| RedisCluster
-
-    MsRecepcion    -->|Publica: Ingreso/Salida| KafkaBroker
-    MsInventario   -->|Publica: UbicacionCambio| KafkaBroker
-    MsForecasting  -->|Publica: AlertaCapacidad| KafkaBroker
-
-    KafkaBroker -->|Consume| MsNotificaciones
-    KafkaBroker -->|Consume| MsForecasting
-    KafkaBroker -->|Consume| MsInventario
-
-    %% Notificaciones push
-    MsNotificaciones -->|Push a Operadores| PushProviders
-    PushProviders --> AppOperario
-
-    %% Integraciones Externas
-    MsRecepcion -->|Sincroniza inventario| ERP
-
-    %% Notificaciones adicionales
-    MsNotificaciones --> EmailSMS
-    EmailSMS -->|Email de reportes| WebPanel
-
-    %% Data Lake & Analytics
-    KafkaBroker -->|Stream todos eventos| SparkJobs
-    SparkJobs -->|Almacena raw| DataLake
-    SparkJobs -->|Agrega para ML/BI| Warehouse
-    Warehouse -->|Reportes BI Ops| WebPanel
-    Warehouse -->|Entrenamiento Modelo| MsForecasting
-
-    %% Logging y monitoreo
-    MsUsuarios -->|Logs| ELK
-    MsInventario -->|Logs| ELK
-    MsRecepcion -->|Logs| ELK
-    MsForecasting -->|Logs| ELK
-    Gateway -->|Accesos| ELK
-    ELK -->|Alertas| AlertManager
-    Prometheus -->|Métricas| MsInventario
-    Prometheus -->|Métricas| MsForecasting
-    AlertManager -->|Notifica fallos| EmailSMS
-
-    %% CDN + WAF + LB
-    WebPanel -->|Static assets| CDN
-    CDN --> WAF
-    WAF --> LB1
-    LB1 --> LB2
-
-    %% =========================================
-    %% ESTILOS APLICADOS A SUBGRÁFICOS
-    %% =========================================
-    style Edge_Layer fill:#eceff1,stroke:#37474f,stroke-width:2px
-    style Frontend_Layer fill:#e1f5fe,stroke:#01579b,stroke-width:2px
-    style Gateway_Layer fill:#fff9c4,stroke:#fbc02d,stroke-width:2px
-    style Backend_Layer fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
-    style ML_Layer fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px
-    style Messaging_Layer fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px
-    style Data_Layer fill:#ffebee,stroke:#c62828,stroke-width:2px
-    style Analytics_Layer fill:#fff3e0,stroke:#e65100,stroke-width:2px
-    style Observability_Layer fill:#efebe9,stroke:#5d4037,stroke-width:2px
-    style External_Services fill:#e8eaf6,stroke:#283593,stroke-width:2px
+    MsUsuarios --> PostgreSQL
+    MsInventario --> PostgreSQL
+    MsRecepcion --> PostgreSQL
+    MsForecasting -->|Lectura histórico| PostgreSQL
